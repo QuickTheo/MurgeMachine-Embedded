@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import os
 import time
@@ -7,7 +7,7 @@ import paho.mqtt.client as mqtt
 import json
 
 MQTT_BROKER='192.168.1.100'
-MQTT_PORT='1883'
+MQTT_PORT=1883
 MQTT_TOPIC='murgemachine'
 
 def on_connect(client, userdata, flags, rc):

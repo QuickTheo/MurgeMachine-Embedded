@@ -28,7 +28,7 @@ def on_message(client, userdata, msg):
     msg_json=json.loads(msg.payload.decode())
 
     for x in range(0, LED_COUNT):
-        pixels[x] = (255, 0, 0)
+        strip[x] = (255, 0, 0)
         sleep(0.1)
 
 client = mqtt.Client()

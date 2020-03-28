@@ -17,10 +17,10 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg):
     print("Message received")
+    print(msg.payload.decode())
     msg_str=str(msg.payload.decode("utf-8","ignore"))
     msg_json=json.loads(msg_str)
     print(msg_str)
-    client.disconnect()
     
 client = mqtt.Client()
 print("Connecting to "+MQTT_BROKER+" MQTT broker")

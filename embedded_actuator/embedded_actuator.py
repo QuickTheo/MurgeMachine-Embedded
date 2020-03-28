@@ -6,7 +6,7 @@ import time
 import sys
 import paho.mqtt.client as mqtt
 import json
-from neopixel import *
+import neopixel
 
 #MQTT constants
 MQTT_BROKER     = '192.168.1.100'
@@ -16,7 +16,6 @@ MQTT_TOPIC      = 'murgemachine'
 #WS2812 LED strip constants
 LED_COUNT      = 21      # Number of LED pixels.
 strip=neopixel.NeoPixel(board.D18,LED_COUNT)
-strip.fill((0, 255, 0))
 
 #MQTT connect callback
 def on_connect(client, userdata, flags, rc):
@@ -27,6 +26,10 @@ def on_connect(client, userdata, flags, rc):
 #MQTT on message received callback
 def on_message(client, userdata, msg):
     msg_json=json.loads(msg.payload.decode())
+
+    for x in range(0, LED_COUNT):
+        pixels[x] = (255, 0, 0)
+        sleep(0.1)
 
 client = mqtt.Client()
 print("Connecting to "+MQTT_BROKER+" MQTT broker")

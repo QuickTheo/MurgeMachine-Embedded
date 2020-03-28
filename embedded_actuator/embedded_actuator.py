@@ -16,6 +16,7 @@ def on_connect(client, userdata, flags, rc):
     print("Subscribed to topic "+MQTT_TOPIC)
 
 def on_message(client, userdata, msg):
+    print("Message received")
     msg_str=str(msg.payload.decode("utf-8","ignore"))
     msg_json=json.loads(msg_str)
     print(msg_str)

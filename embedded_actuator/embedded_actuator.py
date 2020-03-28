@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import board
 import os
 import time
 import sys

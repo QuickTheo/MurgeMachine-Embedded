@@ -15,6 +15,8 @@ MQTT_TOPIC      = 'murgemachine'
 
 #WS2812 LED strip constants
 LED_COUNT      = 21      # Number of LED pixels.
+strip=neopixel.NeoPixel(board.D18,LED_COUNT)
+strip.fill((0, 255, 0))
 
 #MQTT connect callback
 def on_connect(client, userdata, flags, rc):
@@ -25,9 +27,6 @@ def on_connect(client, userdata, flags, rc):
 #MQTT on message received callback
 def on_message(client, userdata, msg):
     msg_json=json.loads(msg.payload.decode())
-    strip=neopixel.NeoPixel(board.D18,LED_COUNT) 
-
-    strip.fill((0, 255, 0))
 
 client = mqtt.Client()
 print("Connecting to "+MQTT_BROKER+" MQTT broker")

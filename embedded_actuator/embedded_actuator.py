@@ -26,10 +26,8 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     msg_json=json.loads(msg.payload.decode())
     strip=neopixel.NeoPixel(board.D18,LED_COUNT)
-    
-    for x in range(0, LED_COUNT):
-        strip[x] = (255, 0, 0)
-        sleep(0.1)
+
+    strip.fill((0,255,0))
 
 client = mqtt.Client()
 print("Connecting to "+MQTT_BROKER+" MQTT broker")

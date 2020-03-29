@@ -18,21 +18,23 @@ MQTT_TOPIC      = 'murgemachine'
 
 #WS2812 LED strip constants
 LED_COUNT       = 21      # Number of LED pixels.
+strip=neopixel.NeoPixel(board.D18,LED_COUNT)
 
 #Pumps
 PUMPS           = [13, 19, 26, 16, 20, 21]
+PUMP_RATIO      = 0.1
 
 #Pump on function
 def turn_on_pump(pump_no, s):
-    print("Turning on pump "+str(pump_no))
-    gpio.output(PUMPS[int(pump_no-1)], gpio.LOW)
-    timer=threading.Timer(s, turn_off_pump, [pump_no])
+    print("Turning on pump "+str(pump_no)+" for "+str(s)+" seconds")
+    gpio.output(PUMPS[int(pump_no)-1], gpio.LOW)
+    timer=threading.Timer(float(s), turn_off_pump, [int(pump_no)])
     timer.start()
 
 #Pump off function
 def turn_off_pump(pump_no):
     print("Turning off pump "+str(pump_no))
-    gpio.output(PUMPS[pump_no-1], gpio.HIGH)
+    gpio.output(PUMPS[int(pump_no)-1], gpio.HIGH)
 
 #MQTT connect callback
 def on_connect(client, userdata, flags, rc):
@@ -43,11 +45,29 @@ def on_connect(client, userdata, flags, rc):
 #MQTT on message received callback
 def on_message(client, userdata, msg):
     print("Cocktail payload received")
-    #msg_json=json.loads(msg.payload.decode())
-    strip=neopixel.NeoPixel(board.D18,LED_COUNT)
-    turn_on_pump(5, 3)
-    turn_on_pump(6, 6)
+    data=json.loads(str(msg.payload.decode()))
+
     #strip[i]=(255,255,255)
+
+    for pump in data['pumps']:
+        turn_on_pump(pump['id'], float(pump['part'])*PUMP_RATIO)
+
+    light=data['light']
+    if str(light['effect'])=="fixed":
+        strip.fill(tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4)))
+    elif str(light['effect'])=="rainbow":
+        pass
+    elif str(light['effect'])=="fade":
+        pass
+    elif str(light['effect'])=="flash":
+        pass
+    elif str(light['effect'])=="chase":
+        for i in range(0, LED_COUNT):
+            strip[i]=tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4))
+            time.sleep(0.01)
+        for i in range(0, LED_COUNT):
+            strip[i]=(0,0,0)
+            time.sleep(0.01)
 
 #Pump configuration
 gpio.setup(PUMPS[0], gpio.OUT)

@@ -3,6 +3,7 @@ import time
 import requests
 import json
 import lcddriver
+import sys
 
 #Button configuration
 BUTTON_LEFT         = 17
@@ -15,7 +16,6 @@ def button_pressed(channel):
     print(str(channel)+" pressed")
 
 display = lcddriver.lcd()
-display.lcd_display_string("Murge Machine", 1)
 
 gpio.setmode(gpio.BCM)
 gpio.setup(BUTTON_LEFT, gpio.IN)
@@ -25,10 +25,16 @@ gpio.add_event_detect(BUTTON_LEFT, gpio.FALLING, callback=button_pressed, bounce
 gpio.add_event_detect(BUTTON_OK, gpio.FALLING, callback=button_pressed, bouncetime=BUTTON_BOUNCE_TIME)
 gpio.add_event_detect(BUTTON_RIGHT, gpio.FALLING, callback=button_pressed, bouncetime=BUTTON_BOUNCE_TIME)
 
-cocktails=json.loads(requests.get("http://localhost:2636/cocktails").text)['cocktails']
-
-for cocktail in cocktails:
-    print(cocktail)
+try:
+    cocktails=json.loads(requests.get("http://localhost:2636/cocktails").text)['cocktails']
+except:
+    display.lcd_display_string("Couldn't connect", 1)
+    display.lcd_display_string("  to REST API   ", 2)
+    sys.exit("Couldn't connect to REST API, exiting")
 
 while(1):
-    pass
+    for cocktail in cocktails:
+        print(cocktail['name'])
+        display.lcd_clear()
+        display.lcd_display_string(cocktail['name'],1)
+        time.sleep(1)

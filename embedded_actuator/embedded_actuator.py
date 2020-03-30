@@ -47,10 +47,9 @@ def on_message(client, userdata, msg):
     print("Cocktail payload received")
     data=json.loads(str(msg.payload.decode()))
 
-    #strip[i]=(255,255,255)
-
-    for pump in data['pumps']:
-        turn_on_pump(pump['id'], float(pump['part'])*PUMP_RATIO)
+    for i in range(0, data['preparation']['size']):
+        for pump in data['preparation']['pumpsActivation']:
+            turn_on_pump(int(pump['number']), float(pump['part'])*PUMP_RATIO)
 
     light=data['light']
     if str(light['effect'])=="fixed":

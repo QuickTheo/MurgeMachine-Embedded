@@ -13,36 +13,64 @@ BUTTON_BOUNCE_TIME  = 300
 ignore_presses      = 0
 
 currentCocktailArrayId=0
+viewNumber=1
+cocktails={}
 
-try:
-    cocktails=json.loads(requests.get("http://localhost:2636/cocktails").text)['cocktails']
-except:
-    display.lcd_display_string("Couldn't connect", 1)
-    display.lcd_display_string("  to REST API   ", 2)
-    sys.exit("Couldn't connect to REST API, exiting")
+lcd.lcd_init()
+lcd.lcd_string(" Murge Machine ", 0x80)
+lcd.lcd_string("      v0.1     ", 0x8C0)
+time.sleep(5)
+
+lcd.lcd_init()
+lcd.lcd_string("   Waiting for     ", 0x80)
+lcd.lcd_string("   REST API...     ", 0x8C0)
+
+def refresh_cocktail_list():
+    global cocktails
+    print("Attempting to connect to REST API...")
+    try:
+        return json.loads(requests.get("http://localhost:2636/cocktails").text)['cocktails']
+    except:
+        return 0
+
+while len(cocktails)==0:
+    cocktails=refresh_cocktail_list()
+    time.sleep(1)
 
 #Button callbacks
 def button_pressed(channel):
     global ignore_presses
+    global viewNumber
 
-    if(ignore_presses==0):
+    cocktails=refresh_cocktail_list()
+
+    if(ignore_presses==0 & cocktails!=0):
         print(str(channel)+" pressed")
         global currentCocktailArrayId
         ignore_presses=1
 
-        if channel==17:
-            if(currentCocktailArrayId==0):
-                currentCocktailArrayId=len(cocktails)-1
-            else:
-                currentCocktailArrayId-=1
-            refresh_screen()
-        elif channel==27:
-            print("Sending preparation order to REST API for \""+cocktails[currentCocktailArrayId]['name']+"\"")
-        elif channel==22:
-            if((currentCocktailArrayId+1)==len(cocktails)):
-                currentCocktailArrayId=0
-            else:
-                currentCocktailArrayId+=1
+        if viewNumber==1 :
+            if channel==17:
+                if(currentCocktailArrayId==0):
+                    currentCocktailArrayId=len(cocktails)-1
+                else:
+                    currentCocktailArrayId-=1
+                refresh_screen()
+            elif channel==27:
+                select_cocktail_size()
+            elif channel==22:
+                if (currentCocktailArrayId+1)==len(cocktails):
+                    currentCocktailArrayId=0
+                else:
+                    currentCocktailArrayId+=1
+                refresh_screen()
+        elif viewNumber==2:
+            if channel==17:
+                print("Sending preparation order to REST API for 25cl of "+cocktails[currentCocktailArrayId]['name'])
+            elif channel==22:
+                print("Sending preparation order to REST API for 50cl of "+cocktails[currentCocktailArrayId]['name'])
+
+            viewNumber=1
             refresh_screen()
             
         ignore_presses=0
@@ -53,7 +81,14 @@ def refresh_screen():
     lcd.lcd_string(cocktails[currentCocktailArrayId]['name'], 0x80)
     lcd.lcd_string("<      o       >", 0x8C0)
 
-lcd.lcd_init()
+def select_cocktail_size():
+    global currentCocktailArrayId
+    global viewNumber
+
+    viewNumber=2
+    lcd.lcd_init()
+    lcd.lcd_string("    Taille?     ", 0x80)
+    lcd.lcd_string("25     <      50", 0x8C0)
 
 gpio.setmode(gpio.BCM)
 gpio.setup(BUTTON_LEFT, gpio.IN)

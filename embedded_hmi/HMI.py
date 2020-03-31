@@ -10,23 +10,21 @@ import sys
 BUTTON_LEFT         = 17
 BUTTON_CENTER       = 27
 BUTTON_RIGHT        = 22
-BUTTON_BOUNCE_TIME  = 300
 
 connect_attempts=0
 
 class HMI:
-    def __init__(self, api_addr):
+    def __init__(self, api_addr, buttons):
         self.api_addr=api_addr
+        self.button_bounce_time=300
+        self.buttons=buttons
 
         lcd.lcd_init()
 
         gpio.setmode(gpio.BCM)
-        gpio.setup(BUTTON_LEFT, gpio.IN)
-        gpio.setup(BUTTON_CENTER, gpio.IN)
-        gpio.setup(BUTTON_RIGHT, gpio.IN)
-        gpio.add_event_detect(BUTTON_LEFT, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
-        gpio.add_event_detect(BUTTON_CENTER, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
-        gpio.add_event_detect(BUTTON_RIGHT, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
+        for button in self.buttons:
+            gpio.setup(button, gpio.IN)
+            gpio.add_event_detect(button, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=self.button_bounce_time)
 
         self.ignore_button_presses=0
         self.refresh_cocktail_list()
@@ -40,24 +38,21 @@ class HMI:
     def cocktail_navigation_callback(self, button):
         if self.ignore_button_presses==0:
             self.ignore_button_presses=1
-            if button==BUTTON_LEFT:
-                print("LEFT")
+            if button==self.buttons[0]:
+                print("Next cocktail")
                 if self.position==0:
                     self.position=len(self.cocktails)-1
                 else:
                     self.position-=1
                 self.refresh_screen()
-            elif button==BUTTON_CENTER:
-                print("OK")
-                gpio.remove_event_detect(BUTTON_LEFT)
-                gpio.remove_event_detect(BUTTON_CENTER)
-                gpio.remove_event_detect(BUTTON_RIGHT)
-                gpio.add_event_detect(BUTTON_LEFT, gpio.FALLING, callback=self.cocktail_size_select_callback, bouncetime=BUTTON_BOUNCE_TIME)
-                gpio.add_event_detect(BUTTON_CENTER, gpio.FALLING, callback=self.cocktail_size_select_callback, bouncetime=BUTTON_BOUNCE_TIME)
-                gpio.add_event_detect(BUTTON_RIGHT, gpio.FALLING, callback=self.cocktail_size_select_callback, bouncetime=BUTTON_BOUNCE_TIME)
+            elif button==self.buttons[1]:
+                print("'"+self.cocktails[self.position]['name']+"' selected")
+                for button in self.buttons:
+                    gpio.remove_event_detect(button)
+                    gpio.add_event_detect(button, gpio.FALLING, callback=self.cocktail_size_select_callback, bouncetime=self.button_bounce_time)
                 self.display_cocktail_size_choice()
-            elif button==BUTTON_RIGHT:
-                print("RIGHT")
+            elif button==self.buttons[2]:
+                print("Previous cocktail")
                 if self.position==len(self.cocktails)-1:
                     self.position=0
                 else:
@@ -68,19 +63,31 @@ class HMI:
     def cocktail_size_select_callback(self, button):
         if self.ignore_button_presses==0:
             self.ignore_button_presses=1
-            if button==BUTTON_LEFT:
-                print("25cl")
-            elif button==BUTTON_CENTER:
-                print("back")
-            elif button==BUTTON_RIGHT:
-                print("50cl")
+            headers={'Content-type': 'application/json', 'Accept': 'text/plain'}
+            if button==self.buttons[1]:
+                print("Back")
+            else:
+                try:
+                    size=(25 if button==self.buttons[0] else 50)
+                    print("Requesting preparation of "+str(size)+" of "+self.cocktails[self.position]['name']+"...")
+                    data={'cocktailId':self.cocktails[self.position]['id'],'size':size,'light':{'color':'','effect':''}}
+                    r=requests.post(self.api_addr+"/request-cocktail", data=json.dumps(data), headers=headers)
+                    if r.status_code==200:
+                        print("Cocktail requested")
+                    else:
+                        print("Cocktail request error")
+                        self.display_drink_not_found()
+                        for button in self.buttons:
+                            gpio.remove_event_detect(button)
+                            gpio.add_event_detect(button, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=self.button_bounce_time)
+                        while not(gpio.event_detected(self.buttons[0])) and not(gpio.event_detected(self.buttons[1])) and not(gpio.event_detected(self.buttons[2])):
+                            pass
+                except:
+                    self.refresh_cocktail_list()
             self.refresh_screen()
-            gpio.remove_event_detect(BUTTON_LEFT)
-            gpio.remove_event_detect(BUTTON_CENTER)
-            gpio.remove_event_detect(BUTTON_RIGHT)
-            gpio.add_event_detect(BUTTON_LEFT, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
-            gpio.add_event_detect(BUTTON_CENTER, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
-            gpio.add_event_detect(BUTTON_RIGHT, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=BUTTON_BOUNCE_TIME)
+            for button in self.buttons:
+                gpio.remove_event_detect(button)
+                gpio.add_event_detect(button, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=self.button_bounce_time)
             self.ignore_button_presses=0
 
     def refresh_cocktail_list(self):
@@ -100,10 +107,8 @@ class HMI:
             connect_attempts=0
             print("")
 
-               
-
         try:
-            response=requests.get(self.api_addr+"/cocktails")
+            response=requests.get(self.api_addr+"/available-cocktails")
             available=1
         except:
             available=0
@@ -113,6 +118,7 @@ class HMI:
             self.refresh_cocktail_list()
         else:
             if response.status_code!=200:
+                time.sleep(0.5)
                 self.refresh_cocktail_list()
             else:
                 print("\nConnected")
@@ -122,6 +128,11 @@ class HMI:
         lcd.lcd_init()
         lcd.lcd_string(" Murge Machine ", 0x80)
         lcd.lcd_string("      v0.1     ", 0x8C0)
+        
+    def display_drink_not_found(self):
+        lcd.lcd_init()
+        lcd.lcd_string("   404 ERROR    ", 0x80)
+        lcd.lcd_string("DRINK NOT FOUND ", 0x8C0)
 
     def refresh_screen(self):
         lcd.lcd_init()
@@ -134,6 +145,6 @@ class HMI:
         lcd.lcd_string("25cl   <    50cl", 0x8C0)
 
 if __name__ == "__main__":
-    hmi=HMI("http://localhost:2636")
+    hmi=HMI("http://localhost:2636", buttons=[17, 27, 22])
     while(1):
         pass

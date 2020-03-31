@@ -14,6 +14,7 @@ import array
 class Actuator(mqtt.Client):
     def __init__(self, mqtt_broker, mqtt_topic, pump_connections, pump_ratio, *args, **kwargs):
         super(Actuator, self).__init__(*args, **kwargs)
+        self.strip=neopixel.NeoPixel(board.D18, 21)
         self.pumps=pump_connections
         self.pump_ratio=pump_ratio
         self.init_pumps()
@@ -30,7 +31,7 @@ class Actuator(mqtt.Client):
     def turn_on_pump(self, pump_no, s):
         print("Turning on pump "+str(pump_no)+" for "+str(s)+" seconds")
         gpio.output(self.pumps[int(pump_no)-1], gpio.LOW)
-        timer=threading.Timer(float(s), turn_off_pump, [int(pump_no)])
+        timer=threading.Timer(float(s), self.turn_off_pump, [int(pump_no)])
         timer.start()
 
     #Pump off function
@@ -50,11 +51,11 @@ class Actuator(mqtt.Client):
 
         for i in range(0, data['preparation']['size']):
             for pump in data['preparation']['pumpsActivation']:
-                turn_on_pump(int(pump['number']), float(pump['part'])*self.pump_ratio)
+                self.turn_on_pump(int(pump['number']), float(pump['part'])*self.pump_ratio)
 
             light=data['light']
             if str(light['effect'])=="fixed":
-                strip.fill(tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4)))
+                self.strip.fill(tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4)))
             elif str(light['effect'])=="rainbow":
                 pass
             elif str(light['effect'])=="fade":
@@ -63,10 +64,10 @@ class Actuator(mqtt.Client):
                 pass
             elif str(light['effect'])=="chase":
                 for i in range(0, LED_COUNT):
-                    strip[i]=tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4))
+                    self.strip[i]=tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4))
                     time.sleep(0.01)
                 for i in range(0, LED_COUNT):
-                    strip[i]=(0,0,0)
+                    self.strip[i]=(0,0,0)
                     time.sleep(0.01)
 
     def on_subscribe(self, mqttc, obj, mid, granted_qos):

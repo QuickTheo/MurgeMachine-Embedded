@@ -12,9 +12,13 @@ BUTTON_CENTER       = 27
 BUTTON_RIGHT        = 22
 BUTTON_BOUNCE_TIME  = 300
 
+connect_attempts=0
+
 class HMI:
     def __init__(self, api_addr):
         self.api_addr=api_addr
+
+        lcd.lcd_init()
 
         gpio.setmode(gpio.BCM)
         gpio.setup(BUTTON_LEFT, gpio.IN)
@@ -80,7 +84,23 @@ class HMI:
             self.ignore_button_presses=0
 
     def refresh_cocktail_list(self):
-        print("Attempting to retreive cocktail list from REST API...")
+        global connect_attempts
+
+        if connect_attempts==0:
+            print("Attempting to connect to REST API", end = '', flush=True)
+            lcd.lcd_string(" Connecting to ", 0x80)
+            lcd.lcd_string("   REST API", 0x8C0) 
+
+        if connect_attempts<3:
+            connect_attempts+=1
+            lcd.lcd_string(" Connecting to ", 0x80)
+            lcd.lcd_string("   REST API"+connect_attempts*".", 0x8C0)
+            print(".", end = '', flush=True)
+        else:
+            connect_attempts=0
+            print("")
+
+               
 
         try:
             response=requests.get(self.api_addr+"/cocktails")
@@ -89,12 +109,13 @@ class HMI:
             available=0
 
         if available==0:
-            time.sleep(1)
+            time.sleep(0.5)
             self.refresh_cocktail_list()
         else:
             if response.status_code!=200:
                 self.refresh_cocktail_list()
             else:
+                print("\nConnected")
                 self.cocktails=json.loads(response.text)['cocktails']
 
     def display_screensaver(self):

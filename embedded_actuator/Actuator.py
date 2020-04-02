@@ -6,21 +6,25 @@ import time
 import sys
 import paho.mqtt.client as mqtt
 import json
-import neopixel
 import threading
 import RPi.GPIO as gpio
 import array
+from LEDStrip import CustomLEDStrip
 
 class Actuator(mqtt.Client):
     def __init__(self, mqtt_broker, mqtt_topic, pump_connections, pump_ratio, *args, **kwargs):
         super(Actuator, self).__init__(*args, **kwargs)
-        self.strip=neopixel.NeoPixel(board.D18, 21)
+        self.strip=CustomLEDStrip(21)
+        self.strip.set_idle_light_config(json.dumps('{"light" : {"color" : "#ff0000","effect" : "fixed"} }'))
         self.pumps=pump_connections
         self.pump_ratio=pump_ratio
         self.init_pumps()
         self.mqtt_broker=mqtt_broker
         self.mqtt_topic=mqtt_topic
         self.run()
+
+    def __del__(self):
+        gpio.cleanup()
 
     def init_pumps(self):
         print("Configuring pumps...")
@@ -31,11 +35,7 @@ class Actuator(mqtt.Client):
     def turn_on_pump(self, pump_no, s):
         print("Turning on pump "+str(pump_no)+" for "+str(s)+" seconds")
         gpio.output(self.pumps[int(pump_no)-1], gpio.LOW)
-        timer=threading.Timer(float(s), self.turn_off_pump, [int(pump_no)])
-        timer.start()
-
-    #Pump off function
-    def turn_off_pump(self, pump_no):
+        time.sleep(float(s))
         print("Turning off pump "+str(pump_no))
         gpio.output(self.pumps[int(pump_no)-1], gpio.HIGH)
 
@@ -48,27 +48,25 @@ class Actuator(mqtt.Client):
     def on_message(self, mqttc, obj, msg):
         print("Cocktail payload received on topic "+msg.topic)
         data=json.loads(str(msg.payload.decode()))
+        light=data['light']
+        light_animation_time=self.pump_ratio*100*int(data['preparation']['size'])/25
 
-        for i in range(0, data['preparation']['size']):
-            for pump in data['preparation']['pumpsActivation']:
-                self.turn_on_pump(int(pump['number']), float(pump['part'])*self.pump_ratio)
+        if str(light['effect'])=="fixed":
+            self.strip.set_fixed_color_threaded(str(light['color']))
+        elif str(light['effect'])=="rainbow":
+            pass
+        elif str(light['effect'])=="fade":
+            pass
+        elif str(light['effect'])=="flash":
+            pass
+        elif str(light['effect'])=="chase":
+            #self.strip.set_chasing_color_threaded(str(light['color']), light_animation_time)
+            pass
 
-            light=data['light']
-            if str(light['effect'])=="fixed":
-                self.strip.fill(tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4)))
-            elif str(light['effect'])=="rainbow":
-                pass
-            elif str(light['effect'])=="fade":
-                pass
-            elif str(light['effect'])=="flash":
-                pass
-            elif str(light['effect'])=="chase":
-                for i in range(0, LED_COUNT):
-                    self.strip[i]=tuple(int(((str(light['color'])).lstrip('#'))[i:i+2], 16) for i in (0, 2, 4))
-                    time.sleep(0.01)
-                for i in range(0, LED_COUNT):
-                    self.strip[i]=(0,0,0)
-                    time.sleep(0.01)
+        for pump in data['preparation']['pumpsActivation']:
+            self.turn_on_pump(int(pump['number']), self.pump_ratio*float(pump['part'])*int(data['preparation']['size'])/25)
+
+        self.strip.reset_idle_light_config()
 
     def on_subscribe(self, mqttc, obj, mid, granted_qos):
         print("Subscribed to topic "+self.mqtt_topic)
@@ -78,6 +76,15 @@ class Actuator(mqtt.Client):
         self.subscribe(self.mqtt_topic)
         self.loop_forever()
 
+    def test_all_pumps(self):
+        print("Testing all "+str(len(self.pumps))+" pumps")
+        for i in range(1, len(self.pumps)+1):
+            self.turn_on_pump(i, 3)
+
 
 if __name__ == "__main__":
-    actuator=Actuator("192.168.1.100", "murgemachine", [13, 19, 26, 16, 20, 21], 0.1)
+    actuator=None
+    try:
+        actuator=Actuator("192.168.1.100", "murgemachine", [13, 19, 26, 16, 20, 21], 0.1)
+    except:
+        del actuator

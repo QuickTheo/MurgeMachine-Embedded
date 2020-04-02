@@ -15,7 +15,7 @@ class Actuator(mqtt.Client):
     def __init__(self, mqtt_broker, mqtt_topic, pump_connections, pump_ratio, *args, **kwargs):
         super(Actuator, self).__init__(*args, **kwargs)
         self.strip=CustomLEDStrip(21)
-        self.strip.set_idle_light_config(json.dumps('{"light" : {"color" : "#ff0000","effect" : "fixed"} }'))
+        self.strip.set_idle_light_config(json.loads('{"color" : "#00ff00","effect" : "chase"}'))
         self.pumps=pump_connections
         self.pump_ratio=pump_ratio
         self.init_pumps()
@@ -49,22 +49,21 @@ class Actuator(mqtt.Client):
         print("Cocktail payload received on topic "+msg.topic)
         data=json.loads(str(msg.payload.decode()))
         light=data['light']
-        light_animation_time=self.pump_ratio*100*int(data['preparation']['size'])/25
 
         if str(light['effect'])=="fixed":
-            self.strip.set_fixed_color_threaded(str(light['color']))
+            self.strip.set_fixed_color_threaded(light['color'])
         elif str(light['effect'])=="rainbow":
-            pass
+            self.strip.set_rainbow_threaded()
         elif str(light['effect'])=="fade":
-            pass
-        elif str(light['effect'])=="flash":
-            pass
+            self.strip.set_fading_color_threaded(light['color'])
+        elif str(light['effect'])=="strobe":
+            self.strip.set_strobing_color_threaded(light['color'], light['frequency'])
         elif str(light['effect'])=="chase":
-            #self.strip.set_chasing_color_threaded(str(light['color']), light_animation_time)
-            pass
+            self.strip.set_chasing_color_threaded(light['color'])
 
         for pump in data['preparation']['pumpsActivation']:
-            self.turn_on_pump(int(pump['number']), self.pump_ratio*float(pump['part'])*int(data['preparation']['size'])/25)
+            time.sleep(2)
+            pass#self.turn_on_pump(int(pump['number']), self.pump_ratio*float(pump['part'])*int(data['preparation']['size'])/25)
 
         self.strip.reset_idle_light_config()
 

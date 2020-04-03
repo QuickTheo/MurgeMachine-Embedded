@@ -15,7 +15,7 @@ class Actuator(mqtt.Client):
     def __init__(self, mqtt_broker, mqtt_topic, pump_connections, pump_ratio, *args, **kwargs):
         super(Actuator, self).__init__(*args, **kwargs)
         self.strip=CustomLEDStrip(21)
-        self.strip.set_idle_light_config(json.loads('{"color" : "#00ff00","effect" : "chase"}'))
+        self.strip.set_idle_light_config(json.loads('{"effect" : "rainbow"}'))
         self.pumps=pump_connections
         self.pump_ratio=pump_ratio
         self.init_pumps()
@@ -57,13 +57,12 @@ class Actuator(mqtt.Client):
         elif str(light['effect'])=="fade":
             self.strip.set_fading_color_threaded(light['color'])
         elif str(light['effect'])=="strobe":
-            self.strip.set_strobing_color_threaded(light['color'], light['frequency'])
+            self.strip.set_strobing_color_threaded(light['color'], 20)
         elif str(light['effect'])=="chase":
             self.strip.set_chasing_color_threaded(light['color'])
 
         for pump in data['preparation']['pumpsActivation']:
-            time.sleep(2)
-            pass#self.turn_on_pump(int(pump['number']), self.pump_ratio*float(pump['part'])*int(data['preparation']['size'])/25)
+            self.turn_on_pump(int(pump['number']), self.pump_ratio*float(pump['part'])*int(data['preparation']['size'])/25)
 
         self.strip.reset_idle_light_config()
 

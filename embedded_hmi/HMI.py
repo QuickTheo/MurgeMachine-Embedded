@@ -16,13 +16,14 @@ connect_attempts=0
 class HMI:
     def __init__(self, api_addr, buttons):
         self.api_addr=api_addr
-        self.button_bounce_time=300
+        self.button_bounce_time=3000
         self.buttons=buttons
 
         lcd.lcd_init()
 
         gpio.setmode(gpio.BCM)
         for button in self.buttons:
+            print(str(button))
             gpio.setup(button, gpio.IN)
             gpio.add_event_detect(button, gpio.FALLING, callback=self.cocktail_navigation_callback, bouncetime=self.button_bounce_time)
 
@@ -36,6 +37,7 @@ class HMI:
         gpio.cleanup()
 
     def cocktail_navigation_callback(self, button):
+        print("button pushed" + str(button))
         if self.ignore_button_presses==0:
             self.ignore_button_presses=1
             if button==self.buttons[0]:
